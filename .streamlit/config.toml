@@ -1,0 +1,9 @@
+# ערכת נושא "איילת השחר" - Sunrise & Luxury: רקע שמנת חם התואם בדיוק את רקע
+# הלוגו (כך שהוא מתמזג בלי מלבן סביבו), זהב/כתום עמוק כצבע הדגשה.
+[theme]
+base = "light"
+primaryColor = "#C9791E"
+backgroundColor = "#FAF8F5"
+secondaryBackgroundColor = "#FBF6EE"
+textColor = "#2B1D0E"
+font = "sans serif"
