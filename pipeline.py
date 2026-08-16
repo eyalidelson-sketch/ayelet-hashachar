@@ -1,9 +1,11 @@
+
 """
 אורקסטרציה: מריץ את שרשרת החיפוש (סריקה -> סינון -> דירוג) עבור בקשת חיפוש
 בודדת, עם callback אופציונלי לעדכוני התקדמות (לשימוש ב-Streamlit) ותמיכה
 במצב "מחיר/איכות" שנבחר ע"י המשתמש (balanced/cheaper/better).
 """
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
@@ -18,16 +20,10 @@ logger = logging.getLogger(__name__)
 
 ProgressCallback = Optional[Callable[[str, float], None]]
 
-# (source_name, factory שמייצר scraper מוכן, notify label, progress fraction)
-# כל scraper מקבל שם פרמטר שונה למגבלת התוצאות (max_items / max_results) -
-# הפונקציות הקטנות למטה מאחדות את זה מאחורי ממשק זהה: factory() -> BaseScraper.
 _SOURCES = [
-    ("Booking.com", lambda: BookingApifyScraper(max_items=config.MAX_RESULTS_PER_SOURCE),
-     "סורק את Booking.com...", 0.12),
-    ("Airbnb", lambda: AirbnbApifyScraper(max_results=config.MAX_RESULTS_PER_SOURCE),
-     "סורק את Airbnb...", 0.32),
-    ("Expedia", lambda: ExpediaApifyScraper(max_items=config.MAX_RESULTS_PER_SOURCE),
-     "סורק את Expedia...", 0.52),
+    ("Booking.com", lambda: BookingApifyScraper(max_items=config.MAX_RESULTS_PER_SOURCE)),
+    ("Airbnb", lambda: AirbnbApifyScraper(max_results=config.MAX_RESULTS_PER_SOURCE)),
+    ("Expedia", lambda: ExpediaApifyScraper(max_items=config.MAX_RESULTS_PER_SOURCE)),
 ]
 
 
@@ -37,6 +33,13 @@ class PipelineResult:
     errors: List[str] = field(default_factory=list)
     total_scraped: int = 0
     mode: str = "balanced"
+
+
+def _fetch_source(source_tuple, request: SearchRequest):
+    label, make_scraper = source_tuple
+    scraper = make_scraper()
+    results = scraper.search(request)
+    return label, results
 
 
 def run_pipeline(
@@ -49,14 +52,25 @@ def run_pipeline(
     errors: List[str] = []
     all_listings: List[Listing] = []
 
-    for label, make_scraper, message, fraction in _SOURCES:
-        notify(message, fraction)
-        try:
-            scraper = make_scraper()
-            all_listings.extend(scraper.search(request))
-        except Exception as exc:
-            logger.exception("%s scraping failed", label)
-            errors.append(f"סריקת {label} נכשלה: {exc}")
+    notify("מריץ חיפוש מקבילי ב-Booking, Airbnb ו-Expedia...", 0.15)
+
+    with ThreadPoolExecutor(max_workers=len(_SOURCES)) as executor:
+        future_to_label = {
+            executor.submit(_fetch_source, src, request): src[0]
+            for src in _SOURCES
+        }
+
+        completed_count = 0
+        for future in as_completed(future_to_label):
+            label = future_to_label[future]
+            completed_count += 1
+            try:
+                _, listings = future.result()
+                all_listings.extend(listings)
+                notify(f"סיום סריקת {label} ({completed_count}/{len(_SOURCES)})", 0.15 + (completed_count * 0.15))
+            except Exception as exc:
+                logger.exception("%s scraping failed", label)
+                errors.append(f"סריקת {label} נכשלה: {exc}")
 
     if not all_listings:
         errors.append("לא נמצאו תוצאות מאף מקור. בדקו את פרטי החיבור ל-Apify או נסו יעד/תאריכים אחרים.")

@@ -38,14 +38,19 @@ class SearchFilters:
         return [label for key, label in labels.items() if getattr(self, key)]
 
 
+MAX_ROOMS = 10
+
+
 @dataclass
 class SearchRequest:
-    """בקשת חיפוש בודדת, כפי שנתפסת מהטופס."""
+    """בקשת חיפוש בודדת, כפי שנתפסת מהטופס (כולל תוצאת פענוח בקשות מיוחדות)."""
     destination: str
     check_in: date
     check_out: date
     guests: int
     filters: SearchFilters = field(default_factory=SearchFilters)
+    rooms: int = 1
+    special_requests: str = ""
 
     @property
     def nights(self) -> int:
@@ -69,6 +74,9 @@ class SearchRequest:
         if not (1 <= self.guests <= MAX_GUESTS):
             errors.append(f"מספר האורחים חייב להיות בין 1 ל-{MAX_GUESTS}.")
 
+        if not (1 <= self.rooms <= MAX_ROOMS):
+            errors.append(f"מספר החדרים חייב להיות בין 1 ל-{MAX_ROOMS}.")
+
         return errors
 
     def to_dict(self) -> dict:
@@ -78,6 +86,8 @@ class SearchRequest:
             "check_out": self.check_out.isoformat(),
             "nights": self.nights,
             "guests": self.guests,
+            "rooms": self.rooms,
+            "special_requests": self.special_requests,
             "filters": self.filters.as_dict(),
         }
 

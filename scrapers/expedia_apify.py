@@ -52,7 +52,7 @@ class ExpediaApifyScraper(BaseScraper):
             "checkIn": request.check_in.isoformat(),
             "checkOut": request.check_out.isoformat(),
             "adults": request.guests,
-            "rooms": 1,
+            "rooms": request.rooms,
             "maxItems": self.max_items,
             "sort": "GUEST_RATING",
         }

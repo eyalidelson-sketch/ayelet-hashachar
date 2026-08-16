@@ -1,9 +1,5 @@
 """
-איילת השחר 🌅 - אסיסטנט חיפוש דירות ומלונות (ממשק Streamlit).
-
-טופס קלט עם השלמה אוטומטית עולמית של יעדים -> הרצת שרשרת החיפוש
-(סריקה משלושה מקורות -> סינון -> דירוג לפי מצב מחיר/איכות נבחר) ->
-תצוגת 3 האופציות המובילות עם תפריט שיתוף, והיסטוריית חיפושים בסרגל הצד.
+איילת השחר 🌅 - אסיסטנט חיפוש דירות ומלונות.
 """
 import base64
 from datetime import date, timedelta
@@ -23,12 +19,6 @@ st.set_page_config(page_title="איילת השחר", page_icon="🌅", layout="c
 LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.png"
 _MODE_KEY_BY_LABEL = {label: key for key, label in MODE_LABELS.items()}
 
-# ---------------------------------------------------------------------------
-# עיצוב: Sunrise & Luxury - רקע שמנת חם, כרטיסים לבנים עם גבול זהב והצללה
-# יוקרתית, כפתורים בגרדיאנט זהב-כתום (הכפתור הראשי - "חפש" - גדול ובולט
-# במיוחד), פונטים Rubik/Assistant. כל כלל מוגן ב-!important כדי שהעיצוב
-# הדיפולטיבי של Streamlit לא ידרוס אותו.
-# ---------------------------------------------------------------------------
 PAGE_BG = "#FAF8F5"
 GOLD_BORDER = "#D4AF37"
 
@@ -41,7 +31,6 @@ st.markdown(
         font-family: 'Rubik', 'Assistant', -apple-system, sans-serif !important;
     }}
 
-    /* --- רקע כללי: שמנת חם בכל שכבות הדף --- */
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
     [data-testid="stMain"], .main {{
         background-color: {PAGE_BG} !important;
@@ -56,8 +45,6 @@ st.markdown(
         background-color: #FBF6EE !important; border-left: 1px solid #EAD8C0 !important;
     }}
 
-    /* --- לוגו: mix-blend-mode מעלים את ההילה הלבנה/שמנתית סביב האייל בלי
-       תלות בהתאמת צבע מדויקת - עובד גם עם גרדיאנט/רקע לא אחיד --- */
     .ayelet-logo-wrap {{
         display: flex !important; justify-content: center !important; align-items: center !important;
         padding: 10px 0 2px !important;
@@ -68,76 +55,63 @@ st.markdown(
         mix-blend-mode: multiply !important;
     }}
 
-    /* --- היררכיית כותרות: גדולות, ברורות, ריווח נעים --- */
+    /* אנימציית טעינה יוקרתית */
+    .ayelet-loader {{
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 30px; margin: 20px 0; background: #FFFFFF;
+        border: 1px solid {GOLD_BORDER}; border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(184, 134, 11, 0.10);
+    }}
+    .ayelet-spinner {{
+        width: 50px; height: 50px; border: 5px solid #F3E5AB;
+        border-top: 5px solid #C9791E; border-radius: 50%;
+        animation: spin 1s linear infinite; margin-bottom: 15px;
+    }}
+    @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+
     h1 {{ font-size: 30px !important; font-weight: 700 !important; color: #2B1D0E !important; }}
     h2, .stApp h2 {{ font-size: 22px !important; font-weight: 700 !important; color: #2B1D0E !important; }}
     h3, .stApp h3 {{ font-size: 18px !important; font-weight: 600 !important; color: #3A2817 !important; }}
-    div[data-testid="stMarkdownContainer"] p {{ line-height: 1.6 !important; }}
 
-    /* --- כרטיסים (טופס, תוצאות): לבן נקי, גבול זהב, הצללה יוקרתית --- */
     div[data-testid="stForm"] {{
         border-radius: 12px !important; border: 1px solid {GOLD_BORDER} !important;
         background: #FFFFFF !important; padding: 30px !important;
         box-shadow: 0 10px 30px rgba(184, 134, 11, 0.10) !important;
     }}
-    div[data-testid="stVerticalBlockBorderWrapper"] {{
-        border-radius: 12px !important; border: 1px solid {GOLD_BORDER} !important;
-        background: #FFFFFF !important; padding: 4px !important;
-        box-shadow: 0 10px 30px rgba(184, 134, 11, 0.10) !important;
-    }}
 
-    /* --- שדות קלט: רקע לבן נקי, גבול זהב עדין, פינות מעוגלות --- */
-    .stTextInput input, .stNumberInput input, .stDateInput input,
+    .stTextInput input, .stNumberInput input, .stDateInput input, .stTextArea textarea,
     div[data-baseweb="input"], div[data-baseweb="select"] > div {{
         border-radius: 12px !important; border: 1px solid {GOLD_BORDER} !important;
         background-color: #FFFFFF !important; color: #2B1D0E !important;
         font-family: 'Rubik', 'Assistant', sans-serif !important;
     }}
-    .stTextInput input:focus, .stNumberInput input:focus, .stDateInput input:focus {{
-        border: 1px solid #C9791E !important;
-        box-shadow: 0 0 0 3px rgba(201, 121, 30, 0.18) !important;
-    }}
 
-    /* --- כפתורים כלליים: גרדיאנט זריחה זהב-כתום, Hover בולט --- */
     .stButton>button, .stFormSubmitButton>button, .stLinkButton>a {{
         border-radius: 10px !important; border: none !important;
         background: linear-gradient(135deg, #C9791E 0%, #D4AF37 55%, #F2C066 100%) !important;
-        color: #ffffff !important; font-weight: 700 !important; letter-spacing: 0.2px !important;
+        color: #ffffff !important; font-weight: 700 !important;
         box-shadow: 0 4px 14px rgba(201, 121, 30, 0.35) !important;
-        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
     }}
-    .stButton>button:hover, .stFormSubmitButton>button:hover, .stLinkButton>a:hover {{
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(201, 121, 30, 0.5) !important;
-    }}
-
-    /* --- כפתור "חפש": כרטיס ענק, מוזהב ומזמין --- */
     .stFormSubmitButton>button {{
         font-size: 22px !important; font-weight: 800 !important;
         padding: 22px 0 !important; border-radius: 14px !important;
-        box-shadow: 0 8px 24px rgba(201, 121, 30, 0.45) !important;
-        border: 1px solid #B8860B !important;
     }}
-    .stFormSubmitButton>button:hover {{
-        box-shadow: 0 12px 30px rgba(201, 121, 30, 0.6) !important;
-    }}
-
-    section[data-testid="stSidebar"] .stButton>button {{
-        background: #FFFFFF !important; color: #4A2C10 !important;
-        border: 1px solid {GOLD_BORDER} !important; box-shadow: none !important;
-        text-align: right !important; font-weight: 500 !important;
-    }}
-    section[data-testid="stSidebar"] .stButton>button:hover {{
-        background: #F5E6C8 !important; transform: none !important;
-    }}
-
-    /* --- Progress bar בגווני זריחה --- */
-    .stProgress > div > div {{ background: linear-gradient(90deg, #C9791E, #F2C066) !important; }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+def parse_free_text_requests(text: str) -> dict:
+    if not text:
+        return {}
+    t = text.lower()
+    return {
+        "air_conditioning": any(w in t for w in ["מזגן", "מיזוג", "ac", "air con"]),
+        "private_bathroom": any(w in t for w in ["שירותים פרטיים", "אמבטיה פרטית", "private bathroom"]),
+        "breakfast_included": any(w in t for w in ["ארוחת בוקר", "ארוחה", "breakfast"]),
+        "separate_beds": any(w in t for w in ["מיטות נפרדות", "twin", "separate beds"]),
+        "free_cancellation": any(w in t for w in ["ביטול בחינם", "ביטול ללא עלות", "free cancellation"]),
+    }
 
 def _render_logo() -> None:
     if not LOGO_PATH.exists():
@@ -145,16 +119,12 @@ def _render_logo() -> None:
         return
     logo_b64 = base64.b64encode(LOGO_PATH.read_bytes()).decode("utf-8")
     st.markdown(
-        f'<div class="ayelet-logo-wrap">'
-        f'<img class="ayelet-logo" src="data:image/png;base64,{logo_b64}" alt="איילת השחר">'
-        f"</div>",
+        f'<div class="ayelet-logo-wrap"><img class="ayelet-logo" src="data:image/png;base64,{logo_b64}" alt="איילת השחר"></div>',
         unsafe_allow_html=True,
     )
 
-
 _render_logo()
 st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-
 
 def _format_date_display(iso_date: str) -> str:
     try:
@@ -162,7 +132,6 @@ def _format_date_display(iso_date: str) -> str:
         return f"{day}/{month}/{year}"
     except Exception:
         return iso_date
-
 
 def _render_result_card(rank: int, ranked_item) -> None:
     listing = ranked_item.listing
@@ -176,15 +145,14 @@ def _render_result_card(rank: int, ranked_item) -> None:
             st.markdown(f"**#{rank} · {listing.title}**")
             st.caption(source_label)
             st.markdown(f"💰 מחיר כולל: **{listing.price_total:,.0f} {listing.currency}**")
-            st.markdown(f"⭐ ציון: **{listing.rating}/10** ({listing.review_count} ביקורות)")
+            st.markdown(f"⭐ ציון משוקלל: **{listing.rating}/10** ({listing.review_count} ביקורות)")
             st.markdown(f"🏆 ציון תמורה למחיר: **{ranked_item.score}**")
-            st.link_button("להזמנה →", listing.booking_url, use_container_width=True)
-
+            st.link_button("להזמנה ←", listing.booking_url, use_container_width=True)
 
 def _render_sharing_section(destination, check_in_disp, check_out_disp, nights, guests, ranked) -> None:
     if not ranked:
         return
-    st.markdown("### 📤 שיתוף התוצאות")
+    st.markdown("### 📢 שיתוף התוצאות")
     message = build_share_message(destination, check_in_disp, check_out_disp, nights, guests, ranked)
 
     share_cols = st.columns(2)
@@ -193,17 +161,16 @@ def _render_sharing_section(destination, check_in_disp, check_out_disp, nights, 
     with share_cols[1]:
         st.link_button(
             "✉️ שליחה במייל",
-            email_share_url(f"3 האופציות המובילות ל{destination}", message),
+            email_share_url(f"3 האפשרויות המובילות ל{destination}", message),
             use_container_width=True,
         )
 
-    st.caption("📋 להעתקה ידנית - לחצו על סמל ההעתקה בפינת התיבה למטה:")
+    st.caption("📋 להעתקה ידנית:")
     st.code(message, language=None)
-
 
 # --- סרגל צד: היסטוריית חיפושים ---
 with st.sidebar:
-    st.markdown("### 🕰️ היסטוריית חיפושים")
+    st.markdown("### 🕒 היסטוריית חיפושים")
 
     history_files = list_search_history()
     if not history_files:
@@ -215,7 +182,7 @@ with st.sidebar:
                 continue
             req_data = entry["request"]
             label = (
-                f"🏙️ {req_data['destination']}\n"
+                f"🏝️ {req_data['destination']}\n"
                 f"{_format_date_display(req_data['check_in'])} – {_format_date_display(req_data['check_out'])}"
             )
             if st.button(label, key=f"hist_{path.name}", use_container_width=True):
@@ -228,14 +195,11 @@ with st.sidebar:
             st.session_state.pop("viewing_history", None)
             st.rerun()
 
-
-# --- תצוגת היסטוריה שמורה (אם נבחרה בסרגל הצד) ---
+# --- תצוגת היסטוריה ---
 viewing_path = st.session_state.get("viewing_history")
 if viewing_path:
     entry = load_search_history_entry(Path(viewing_path))
-    if not entry:
-        st.error("לא ניתן לטעון את החיפוש שנבחר.")
-    else:
+    if entry:
         req_data = entry["request"]
         mode_used = entry.get("mode", "balanced")
         check_in_disp = _format_date_display(req_data["check_in"])
@@ -255,23 +219,14 @@ if viewing_path:
                 req_data["destination"], check_in_disp, check_out_disp,
                 req_data["nights"], req_data["guests"], ranked_objects,
             )
-        else:
-            st.info("לחיפוש הזה לא נמצאו תוצאות שמורות.")
-
-        if entry.get("errors"):
-            with st.expander("פרטי שגיאות/אזהרות מהחיפוש המקורי"):
-                for err in entry["errors"]:
-                    st.warning(err)
-
     st.stop()
 
-
-# --- טופס חיפוש חדש ---
+# --- טופס חיפוש ---
 st.markdown("#### 🌍 יעד החיפוש")
 destination_query = st.text_input(
-    "הקלידו שם עיר (עברית או אנגלית)",
+    "הקלד שם עיר",
     key="destination_query",
-    placeholder="לדוגמה: שטוקהולם, Rio de Janeiro, פוקט, יאמאגאטה...",
+    placeholder="לדוגמה: שטוקהולם, Rio de Janeiro, פוקט...",
     label_visibility="collapsed",
 )
 
@@ -279,49 +234,26 @@ if "ayelet_destination" not in st.session_state:
     st.session_state["ayelet_destination"] = ""
 
 if destination_query and len(destination_query.strip()) >= 2:
-    with st.spinner("מחפש ערים תואמות..."):
-        suggestions = search_destinations(destination_query.strip())
+    suggestions = search_destinations(destination_query.strip())
     if suggestions:
-        manual_option = f'✏️ המשך עם "{destination_query.strip()}" כפי שהוקלד'
+        manual_option = f'✍️ המשך עם "{destination_query.strip()}" כפי שהוקלד'
         options = suggestions + [manual_option]
-        choice = st.radio(
-            "בחרו מתוך ההצעות:", options, key="destination_radio", label_visibility="collapsed"
-        )
-        st.session_state["ayelet_destination"] = (
-            destination_query.strip() if choice == manual_option else choice
-        )
+        choice = st.radio("בחר מההצעות:", options, key="destination_radio", label_visibility="collapsed")
+        st.session_state["ayelet_destination"] = destination_query.strip() if choice == manual_option else choice
     else:
-        # אין הצעות אוטומטיות מהמאגרים - ממשיכים בשקט עם הטקסט שהוקלד, בלי הודעת
-        # שגיאה מפריעה (יעדים תקינים רבים פשוט לא מופיעים במאגרי הגאוקודינג).
         st.session_state["ayelet_destination"] = destination_query.strip()
-elif destination_query:
-    st.session_state["ayelet_destination"] = destination_query.strip()
-else:
-    st.session_state["ayelet_destination"] = ""
-
-if st.session_state["ayelet_destination"]:
-    st.success(f"✅ יעד נבחר: **{st.session_state['ayelet_destination']}**")
 
 with st.form("search_form"):
     st.subheader("פרטי החיפוש")
-
     col1, col2 = st.columns(2)
     with col1:
-        check_in = st.date_input(
-            "תאריך צ'ק-אין",
-            value=date.today() + timedelta(days=7),
-            min_value=date.today(),
-        )
+        check_in = st.date_input("תאריך צ'ק-אין", value=date.today() + timedelta(days=7), min_value=date.today())
     with col2:
-        check_out = st.date_input(
-            "תאריך צ'ק-אאוט",
-            value=date.today() + timedelta(days=10),
-            min_value=date.today(),
-        )
+        check_out = st.date_input("תאריך צ'ק-אאוט", value=date.today() + timedelta(days=10), min_value=date.today())
 
     guests = st.number_input("כמות אורחים", min_value=1, max_value=16, value=2, step=1)
 
-    st.subheader("סינונים")
+    st.subheader("סינונים ודרישות מיוחדות")
     fcol1, fcol2 = st.columns(2)
     with fcol1:
         air_conditioning = st.checkbox("מיזוג אוויר")
@@ -331,55 +263,51 @@ with st.form("search_form"):
         separate_beds = st.checkbox("מיטות נפרדות")
         free_cancellation = st.checkbox("ביטול בחינם")
 
-    submitted = st.form_submit_button("🔍 חפש", use_container_width=True)
-
-    st.caption("התאמת תוצאות:")
-    mode_label = st.radio(
-        "התאמת תוצאות",
-        list(MODE_LABELS.values()),
-        index=0,
-        horizontal=True,
-        key="mode_radio",
-        label_visibility="collapsed",
+    special_requests_text = st.text_area(
+        "בקשות מיוחדות בשפה חופשית",
+        placeholder="למשל: 'חייב מזגן, ארוחת בוקר וביטול בחינם'",
     )
 
+    submitted = st.form_submit_button("🔍 חפש", use_container_width=True)
+    mode_label = st.radio("התאמת תוצאות", list(MODE_LABELS.values()), index=0, horizontal=True, key="mode_radio", label_visibility="collapsed")
 
 if submitted:
     selected_mode = _MODE_KEY_BY_LABEL.get(mode_label, "balanced")
-
+    parsed_filters = parse_free_text_requests(special_requests_text)
+    
     request = SearchRequest(
         destination=st.session_state.get("ayelet_destination", ""),
         check_in=check_in,
         check_out=check_out,
         guests=int(guests),
         filters=SearchFilters(
-            air_conditioning=air_conditioning,
-            private_bathroom=private_bathroom,
-            breakfast_included=breakfast_included,
-            separate_beds=separate_beds,
-            free_cancellation=free_cancellation,
+            air_conditioning=air_conditioning or parsed_filters.get("air_conditioning", False),
+            private_bathroom=private_bathroom or parsed_filters.get("private_bathroom", False),
+            breakfast_included=breakfast_included or parsed_filters.get("breakfast_included", False),
+            separate_beds=separate_beds or parsed_filters.get("separate_beds", False),
+            free_cancellation=free_cancellation or parsed_filters.get("free_cancellation", False),
         ),
     )
 
     errors = request.validate()
-
     if errors:
         st.error("יש לתקן את הבעיות הבאות:")
         for err in errors:
             st.markdown(f"- {err}")
     else:
-        progress_bar = st.progress(0.0)
-        status_text = st.empty()
+        loader_placeholder = st.empty()
+        loader_placeholder.markdown(
+            """
+            <div class="ayelet-loader">
+                <div class="ayelet-spinner"></div>
+                <h3 style="margin:0;">איילת השחר סורקת ומדרגת עבורך את האפשרויות הטובות ביותר...</h3>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        def update_progress(message: str, fraction: float) -> None:
-            status_text.info(message)
-            progress_bar.progress(min(max(fraction, 0.0), 1.0))
-
-        with st.spinner("מריץ את שרשרת החיפוש (סריקה, סינון ודירוג)..."):
-            result = run_pipeline(request, mode=selected_mode, on_progress=update_progress)
-
-        progress_bar.empty()
-        status_text.empty()
+        result = run_pipeline(request, mode=selected_mode)
+        loader_placeholder.empty()
 
         save_search_history(
             request, result.ranked, errors=result.errors,
@@ -387,14 +315,9 @@ if submitted:
         )
 
         if result.ranked:
-            st.success(
-                f"נמצאו {len(result.ranked)} אופציות מובילות מתוך {result.total_scraped} תוצאות שנסרקו "
-                f"(מצב: {MODE_LABELS.get(selected_mode, selected_mode)}). ✅"
-            )
-            st.subheader("3 האופציות המובילות")
+            st.success(f"נמצאו {len(result.ranked)} אפשרויות מובילות מתוך {result.total_scraped} תוצאות. ✅")
             for i, ranked_item in enumerate(result.ranked, start=1):
                 _render_result_card(i, ranked_item)
-
             _render_sharing_section(
                 request.destination,
                 request.check_in.strftime("%d/%m/%Y"),
@@ -405,8 +328,3 @@ if submitted:
             )
         else:
             st.error("לא נמצאו תוצאות מתאימות לבקשת החיפוש.")
-
-        if result.errors:
-            with st.expander("פרטי שגיאות / אזהרות"):
-                for err in result.errors:
-                    st.warning(err)

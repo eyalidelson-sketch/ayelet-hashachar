@@ -50,7 +50,7 @@ class AirbnbApifyScraper(BaseScraper):
         self.client = ApifyClient(self.api_token)
 
     def _build_run_input(self, request: SearchRequest) -> dict:
-        return {
+        run_input = {
             "locationQueries": [request.destination],
             "checkIn": request.check_in.isoformat(),
             "checkOut": request.check_out.isoformat(),
@@ -58,6 +58,12 @@ class AirbnbApifyScraper(BaseScraper):
             "currency": "USD",
             "maxResults": self.max_results,
         }
+        # לאיירבנב אין מושג ישיר של "כמות חדרים שהוזמנו" (זה נכס שלם, לא חדרים
+        # בודדים) - הפרוקסי הסביר ביותר ל"אני צריך N חדרים" הוא לדרוש נכס עם
+        # לפחות N חדרי שינה (minBedrooms).
+        if request.rooms and request.rooms > 1:
+            run_input["minBedrooms"] = request.rooms
+        return run_input
 
     def search(self, request: SearchRequest) -> List[Listing]:
         run_input = self._build_run_input(request)

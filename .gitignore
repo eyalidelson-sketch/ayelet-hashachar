@@ -18,3 +18,10 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# קובץ שיירי ריק שנוצר בטעות בניסיון commit קודם (לא ניתן למחיקה בסביבה זו)
+git.bak
+
+# מודול ישן שהלוגיקה שלו אוחדה בתוך app.py (parse_free_text_requests) כדי
+# למנוע תלות יבוא נפרדת שעלולה לקרוס בשרת אם הקובץ לא יעלה כראוי
+special_requests.py

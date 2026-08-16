@@ -60,7 +60,7 @@ WEIGHT_REVIEW_COUNT = float(_get_secret("WEIGHT_REVIEW_COUNT", "0.15"))
 # ציון "ממוצע צפוי" (בסקאלת 0-10) שאליו מכווצים ציונים עם מעט ביקורות;
 # RATING_CONFIDENCE הוא כמות הביקורות הדרושה כדי לבטוח כמעט לגמרי בציון הגולמי.
 RATING_PRIOR = float(_get_secret("RATING_PRIOR", "8.0"))
-RATING_CONFIDENCE = float(_get_secret("RATING_CONFIDENCE", "10"))
+RATING_CONFIDENCE = float(_get_secret("RATING_CONFIDENCE", "20"))
 
 # כמות תוצאות מקסימלית לבקש מכל מקור סריקה (עלות/ביצועים)
 MAX_RESULTS_PER_SOURCE = int(_get_secret("MAX_RESULTS_PER_SOURCE", "30"))

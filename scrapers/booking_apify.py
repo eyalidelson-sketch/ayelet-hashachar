@@ -40,7 +40,7 @@ class BookingApifyScraper(BaseScraper):
             "checkIn": request.check_in.isoformat(),
             "checkOut": request.check_out.isoformat(),
             "adults": request.guests,
-            "rooms": 1,
+            "rooms": request.rooms,
             "currency": "USD",
             "maxItems": self.max_items,
             "sortBy": "review_score_and_price",
