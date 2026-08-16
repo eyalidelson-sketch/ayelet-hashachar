@@ -16,7 +16,7 @@ from apify_client import ApifyClient
 
 import config
 from models import Listing, SearchRequest
-from scrapers.base import BaseScraper
+from scrapers.base import BaseScraper, get_run_field
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,10 @@ class BookingApifyScraper(BaseScraper):
             logger.error("Booking Apify run failed: %s", exc)
             raise
 
-        # שימוש ב-.get() בטוח (לא ב-run["..."]) כדי שלא נקבל KeyError לא ברור אם
-        # ה-Actor מחזיר צורת run שונה מהצפוי - נעדיף להחזיר [] בבירור.
-        dataset_id = (run or {}).get("defaultDatasetId")
+        # run יכול להיות אובייקט Run (עם run.default_dataset_id) או dict גולמי
+        # (עם run["defaultDatasetId"]) - תלוי בגרסת apify-client. get_run_field
+        # תומך בשני המצבים בלי לקרוס עם AttributeError/KeyError.
+        dataset_id = get_run_field(run, "default_dataset_id", "defaultDatasetId")
         if not dataset_id:
             logger.warning("Booking Apify run returned no defaultDatasetId: %r", run)
             return []
