@@ -54,8 +54,11 @@ class BookingApifyScraper(BaseScraper):
             logger.error("Booking Apify run failed: %s", exc)
             raise
 
-        dataset_id = run["defaultDatasetId"] if isinstance(run, dict) else run.get("defaultDatasetId", getattr(run, "default_dataset_id", None)) if hasattr(run, "get") else getattr(run, "default_dataset_id", None) if run else None
+        # שימוש ב-.get() בטוח (לא ב-run["..."]) כדי שלא נקבל KeyError לא ברור אם
+        # ה-Actor מחזיר צורת run שונה מהצפוי - נעדיף להחזיר [] בבירור.
+        dataset_id = (run or {}).get("defaultDatasetId")
         if not dataset_id:
+            logger.warning("Booking Apify run returned no defaultDatasetId: %r", run)
             return []
 
         listings: List[Listing] = []

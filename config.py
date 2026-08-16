@@ -19,14 +19,19 @@ load_dotenv()
 
 
 def _get_secret(key: str, default: str = "") -> str:
-    """מנסה קודם st.secrets (לפריסה בענן), ואז נופל למשתני סביבה/.env."""
+    """מנסה קודם st.secrets (לפריסה בענן), ואז נופל למשתני סביבה/.env.
+
+    strip() מוחל בכוונה על כל ערך - תקלה נפוצה מאוד היא הדבקת מפתח API עם רווח
+    או שורה חדשה מיותרת בסוף לתוך תיבת ה-Secrets ב-Streamlit Cloud, מה שגורם
+    לשגיאת אימות (401) שנראית כמו "אין תוצאות" בלי שום סיבה נראית לעין.
+    """
     try:
         if key in st.secrets:
-            return str(st.secrets[key])
+            return str(st.secrets[key]).strip()
     except Exception:
         # אין קובץ secrets.toml (למשל בהרצה מקומית רגילה) - זה תקין, ממשיכים ל-.env
         pass
-    return os.getenv(key, default)
+    return os.getenv(key, default).strip()
 
 
 BASE_DIR = Path(__file__).resolve().parent

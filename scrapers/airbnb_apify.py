@@ -73,8 +73,11 @@ class AirbnbApifyScraper(BaseScraper):
             logger.error("Airbnb Apify run failed: %s", exc)
             raise
 
-        dataset_id = run["defaultDatasetId"] if isinstance(run, dict) else run.get("defaultDatasetId", getattr(run, "default_dataset_id", None)) if hasattr(run, "get") else getattr(run, "default_dataset_id", None) if run else None
+        # שימוש ב-.get() בטוח (לא ב-run["..."]) כדי שלא נקבל KeyError לא ברור אם
+        # ה-Actor מחזיר צורת run שונה מהצפוי - נעדיף להחזיר [] בבירור.
+        dataset_id = (run or {}).get("defaultDatasetId")
         if not dataset_id:
+            logger.warning("Airbnb Apify run returned no defaultDatasetId: %r", run)
             return []
 
         nights = max(request.nights, 1)

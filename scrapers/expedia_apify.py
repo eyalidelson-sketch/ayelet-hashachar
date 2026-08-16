@@ -65,8 +65,9 @@ class ExpediaApifyScraper(BaseScraper):
             logger.error("Expedia Apify run failed: %s", exc)
             raise
 
-        dataset_id = run.get("defaultDatasetId") if run else None
+        dataset_id = (run or {}).get("defaultDatasetId")
         if not dataset_id:
+            logger.warning("Expedia Apify run returned no defaultDatasetId: %r", run)
             return []
 
         listings: List[Listing] = []

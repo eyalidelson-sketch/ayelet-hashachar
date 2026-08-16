@@ -7,6 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 
+import config
 from geocoding import search_destinations
 from models import SearchFilters, SearchRequest
 from pipeline import run_pipeline
@@ -294,6 +295,15 @@ if submitted:
         st.error("יש לתקן את הבעיות הבאות:")
         for err in errors:
             st.markdown(f"- {err}")
+    elif not config.APIFY_API_TOKEN:
+        # בדיקה מוקדמת ומפורשת - עדיף להיכשל כאן עם הודעה ברורה מאשר להריץ
+        # את כל הפייפליין ולקבל "לא נמצאו תוצאות" סתמי כתוצאה עקיפה.
+        st.error(
+            "⚠️ לא הוגדר מפתח APIFY_API_TOKEN. יש להגדיר אותו תחת "
+            "**Settings → Secrets** באפליקציית Streamlit Cloud (בפורמט "
+            "`APIFY_API_TOKEN = \"apify_api_...\"`), ואז ללחוץ על **Reboot app** "
+            "כדי שהערך ייטען."
+        )
     else:
         loader_placeholder = st.empty()
         loader_placeholder.markdown(
@@ -306,25 +316,58 @@ if submitted:
             unsafe_allow_html=True
         )
 
-        result = run_pipeline(request, mode=selected_mode)
+        result = None
+        try:
+            result = run_pipeline(request, mode=selected_mode)
+        except Exception as exc:
+            loader_placeholder.empty()
+            st.error("אירעה שגיאה בלתי צפויה בזמן הרצת החיפוש (ולא רק 'אין תוצאות'):")
+            st.exception(exc)
+
         loader_placeholder.empty()
 
-        save_search_history(
-            request, result.ranked, errors=result.errors,
-            total_scraped=result.total_scraped, mode=selected_mode,
-        )
-
-        if result.ranked:
-            st.success(f"נמצאו {len(result.ranked)} אפשרויות מובילות מתוך {result.total_scraped} תוצאות. ✅")
-            for i, ranked_item in enumerate(result.ranked, start=1):
-                _render_result_card(i, ranked_item)
-            _render_sharing_section(
-                request.destination,
-                request.check_in.strftime("%d/%m/%Y"),
-                request.check_out.strftime("%d/%m/%Y"),
-                request.nights,
-                request.guests,
-                result.ranked,
+        if result is not None:
+            save_search_history(
+                request, result.ranked, errors=result.errors,
+                total_scraped=result.total_scraped, mode=selected_mode,
             )
-        else:
-            st.error("לא נמצאו תוצאות מתאימות לבקשת החיפוש.")
+
+            if result.ranked:
+                st.success(f"נמצאו {len(result.ranked)} אפשרויות מובילות מתוך {result.total_scraped} תוצאות. ✅")
+                if result.errors:
+                    with st.expander("⚠️ חלק מהמקורות נתקלו בבעיה (התוצאות למעלה מגיעות מהמקורות שכן הצליחו)"):
+                        for err in result.errors:
+                            st.markdown(f"- {err}")
+                for i, ranked_item in enumerate(result.ranked, start=1):
+                    _render_result_card(i, ranked_item)
+                _render_sharing_section(
+                    request.destination,
+                    request.check_in.strftime("%d/%m/%Y"),
+                    request.check_out.strftime("%d/%m/%Y"),
+                    request.nights,
+                    request.guests,
+                    result.ranked,
+                )
+            elif result.errors:
+                st.error("לא נמצאו תוצאות מתאימות לבקשת החיפוש. הסיבות שזוהו:")
+                for err in result.errors:
+                    st.markdown(f"- {err}")
+            else:
+                st.error(
+                    "לא נמצאו תוצאות מתאימות לבקשת החיפוש, ולא זוהתה שגיאה ספציפית - "
+                    "כדאי לנסות יעד/תאריכים אחרים."
+                )
+
+            with st.expander("🔧 פרטי דיבוג"):
+                st.write(f"סה\"כ תוצאות שנאספו (לפני סינון ודירוג): **{result.total_scraped}**")
+                if result.source_counts:
+                    st.write("פילוח לפי מקור:")
+                    for source_label, count in result.source_counts.items():
+                        st.write(f"- {source_label}: {count} תוצאות")
+                st.write(f"מצב מחיר/איכות: **{MODE_LABELS.get(result.mode, result.mode)}**")
+                if result.errors:
+                    st.write("הודעות/שגיאות מלאות:")
+                    for err in result.errors:
+                        st.code(err, language=None)
+                else:
+                    st.write("לא התקבלו שגיאות מהמערכת בריצה הזו.")

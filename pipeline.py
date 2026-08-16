@@ -7,7 +7,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import config
 from models import Listing, RankedListing, SearchRequest
@@ -31,6 +31,11 @@ _SOURCES = [
 class PipelineResult:
     ranked: List[RankedListing] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+    # פילוח שקוף לצורכי דיבוג: כמה תוצאות התקבלו מכל מקור בנפרד, כדי שאפשר
+    # יהיה להבחין בין "מקור X נכשל עם שגיאה" ל"מקור X רץ בהצלחה אבל החזיר 0
+    # תוצאות" (למשל בגלל actor ID שגוי, פרמטר קלט לא תקין, או פשוט אין זמינות) -
+    # שני מצבים שקודם לכן נראו זהים למשתמש ("לא נמצאו תוצאות").
+    source_counts: Dict[str, int] = field(default_factory=dict)
     total_scraped: int = 0
     mode: str = "balanced"
 
@@ -50,7 +55,15 @@ def run_pipeline(
             on_progress(message, fraction)
 
     errors: List[str] = []
+    source_counts: Dict[str, int] = {}
     all_listings: List[Listing] = []
+
+    if not config.APIFY_API_TOKEN:
+        errors.append(
+            "APIFY_API_TOKEN חסר. יש להגדיר אותו תחת Settings → Secrets באפליקציית "
+            "Streamlit Cloud (או בקובץ .env בהרצה מקומית) ולבצע Reboot לאפליקציה."
+        )
+        return PipelineResult(ranked=[], errors=errors, source_counts=source_counts, total_scraped=0, mode=mode)
 
     notify("מריץ חיפוש מקבילי ב-Booking, Airbnb ו-Expedia...", 0.15)
 
@@ -67,14 +80,22 @@ def run_pipeline(
             try:
                 _, listings = future.result()
                 all_listings.extend(listings)
+                source_counts[label] = len(listings)
                 notify(f"סיום סריקת {label} ({completed_count}/{len(_SOURCES)})", 0.15 + (completed_count * 0.15))
+                if not listings:
+                    errors.append(
+                        f"{label}: הסריקה רצה בהצלחה אך החזירה 0 תוצאות "
+                        "(ייתכן actor ID שגוי, פרמטרי חיפוש לא תואמים לסכמת ה-Actor, "
+                        "או פשוט אין זמינות ליעד/תאריכים שנבחרו)."
+                    )
             except Exception as exc:
                 logger.exception("%s scraping failed", label)
+                source_counts[label] = 0
                 errors.append(f"סריקת {label} נכשלה: {exc}")
 
     if not all_listings:
         errors.append("לא נמצאו תוצאות מאף מקור. בדקו את פרטי החיבור ל-Apify או נסו יעד/תאריכים אחרים.")
-        return PipelineResult(ranked=[], errors=errors, total_scraped=0, mode=mode)
+        return PipelineResult(ranked=[], errors=errors, source_counts=source_counts, total_scraped=0, mode=mode)
 
     notify("מסנן לפי הדרישות שנבחרו...", 0.68)
     filtered = filter_listings(all_listings, request.filters)
@@ -91,4 +112,7 @@ def run_pipeline(
         errors.append("לא נותרו תוצאות לדירוג.")
 
     notify("הושלם!", 1.0)
-    return PipelineResult(ranked=ranked, errors=errors, total_scraped=len(all_listings), mode=mode)
+    return PipelineResult(
+        ranked=ranked, errors=errors, source_counts=source_counts,
+        total_scraped=len(all_listings), mode=mode,
+    )
